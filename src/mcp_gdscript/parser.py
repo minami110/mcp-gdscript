@@ -119,11 +119,24 @@ class GDScriptParser:
         target_node = node
 
         if child_name:
+            # First try field_by_field_name
             target_node = node.child_by_field_name(child_name)
+
+            # If not found, search by node type
+            if not target_node:
+                for child in node.children:
+                    if child.type == child_name:
+                        target_node = child
+                        break
+
             if not target_node:
                 return None
 
         if target_node.type == "identifier":
+            return target_node.text.decode("utf-8") if isinstance(target_node.text, bytes) else str(target_node.text)
+
+        # If the node type is "name", return its text directly
+        if target_node.type == "name":
             return target_node.text.decode("utf-8") if isinstance(target_node.text, bytes) else str(target_node.text)
 
         # Try to get the first identifier child
@@ -224,13 +237,20 @@ class GDScriptParser:
         node_type = node.type
 
         # Check for extends statement
-        if node_type == "extend_statement":
-            path = self._extract_string_value(node)
-            if path:
-                deps["extends"].append(path)
+        if node_type in ("extends_statement", "extend_statement"):
+            # For extends, the type is in the "type" child node
+            for child in node.children:
+                if child.type == "type":
+                    path = child.text.decode("utf-8") if isinstance(child.text, bytes) else str(child.text)
+                    if path:
+                        deps["extends"].append(path)
+                elif child.type == "identifier":
+                    path = child.text.decode("utf-8") if isinstance(child.text, bytes) else str(child.text)
+                    if path and path != "extends":
+                        deps["extends"].append(path)
 
-        # Check for preload function calls
-        elif node_type == "function_call":
+        # Check for preload function calls (both function_call and call node types)
+        elif node_type in ("function_call", "call"):
             if self._is_preload_call(node):
                 path = self._extract_string_argument(node)
                 if path:
