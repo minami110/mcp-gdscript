@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from mcp.types import Tool, TextContent, ToolResult
+from mcp.types import Tool, TextContent, CallToolResult
 
 from .parser import GDScriptParser
 
@@ -99,7 +99,7 @@ class GDScriptTools:
             ),
         ]
 
-    def handle_tool_call(self, tool_name: str, tool_input: dict[str, Any]) -> ToolResult:
+    def handle_tool_call(self, tool_name: str, tool_input: dict[str, Any]) -> CallToolResult:
         """Handle a tool call.
 
         Args:
@@ -107,7 +107,7 @@ class GDScriptTools:
             tool_input: Input parameters for the tool
 
         Returns:
-            ToolResult with the output
+            CallToolResult with the output
         """
         try:
             if tool_name == "analyze_gdscript_file":
@@ -121,35 +121,35 @@ class GDScriptTools:
             elif tool_name == "analyze_gdscript_code":
                 return self._analyze_code(tool_input["code"])
             else:
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"Unknown tool: {tool_name}")],
                     isError=True,
                 )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error: {str(e)}")],
                 isError=True,
             )
 
-    def _analyze_file(self, file_path: str) -> ToolResult:
+    def _analyze_file(self, file_path: str) -> CallToolResult:
         """Analyze a GDScript file.
 
         Args:
             file_path: Path to the file
 
         Returns:
-            ToolResult with analysis
+            CallToolResult with analysis
         """
         try:
             path = Path(file_path)
             if not path.exists():
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"File not found: {file_path}")],
                     isError=True,
                 )
 
             if not path.suffix.lower() in [".gd", ".gdscript"]:
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text="File must be a .gd or .gdscript file")],
                     isError=True,
                 )
@@ -170,29 +170,29 @@ class GDScriptTools:
                 },
             }
 
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps(result, indent=2))],
                 isError=False,
             )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error analyzing file: {str(e)}")],
                 isError=True,
             )
 
-    def _get_structure(self, file_path: str) -> ToolResult:
+    def _get_structure(self, file_path: str) -> CallToolResult:
         """Get structure view of a GDScript file.
 
         Args:
             file_path: Path to the file
 
         Returns:
-            ToolResult with structure
+            CallToolResult with structure
         """
         try:
             path = Path(file_path)
             if not path.exists():
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"File not found: {file_path}")],
                     isError=True,
                 )
@@ -201,17 +201,17 @@ class GDScriptTools:
             tree = self.parser.parse(code)
             structure = self.parser.get_structure(tree, code)
 
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=structure)],
                 isError=False,
             )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error getting structure: {str(e)}")],
                 isError=True,
             )
 
-    def _find_symbol(self, file_path: str, symbol_name: str) -> ToolResult:
+    def _find_symbol(self, file_path: str, symbol_name: str) -> CallToolResult:
         """Find a symbol in a GDScript file.
 
         Args:
@@ -219,12 +219,12 @@ class GDScriptTools:
             symbol_name: Name of the symbol to find
 
         Returns:
-            ToolResult with symbol info
+            CallToolResult with symbol info
         """
         try:
             path = Path(file_path)
             if not path.exists():
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"File not found: {file_path}")],
                     isError=True,
                 )
@@ -234,34 +234,34 @@ class GDScriptTools:
             symbol = self.parser.find_symbol(tree, symbol_name)
 
             if symbol:
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=json.dumps(symbol, indent=2))],
                     isError=False,
                 )
             else:
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"Symbol '{symbol_name}' not found")],
                     isError=True,
                 )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error finding symbol: {str(e)}")],
                 isError=True,
             )
 
-    def _get_dependencies(self, file_path: str) -> ToolResult:
+    def _get_dependencies(self, file_path: str) -> CallToolResult:
         """Get dependencies from a GDScript file.
 
         Args:
             file_path: Path to the file
 
         Returns:
-            ToolResult with dependencies
+            CallToolResult with dependencies
         """
         try:
             path = Path(file_path)
             if not path.exists():
-                return ToolResult(
+                return CallToolResult(
                     content=[TextContent(type="text", text=f"File not found: {file_path}")],
                     isError=True,
                 )
@@ -275,24 +275,24 @@ class GDScriptTools:
                 "dependencies": dependencies,
             }
 
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps(result, indent=2))],
                 isError=False,
             )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error getting dependencies: {str(e)}")],
                 isError=True,
             )
 
-    def _analyze_code(self, code: str) -> ToolResult:
+    def _analyze_code(self, code: str) -> CallToolResult:
         """Analyze GDScript code provided directly.
 
         Args:
             code: GDScript source code
 
         Returns:
-            ToolResult with analysis
+            CallToolResult with analysis
         """
         try:
             tree = self.parser.parse(code)
@@ -311,12 +311,12 @@ class GDScriptTools:
                 },
             }
 
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps(result, indent=2))],
                 isError=False,
             )
         except Exception as e:
-            return ToolResult(
+            return CallToolResult(
                 content=[TextContent(type="text", text=f"Error analyzing code: {str(e)}")],
                 isError=True,
             )

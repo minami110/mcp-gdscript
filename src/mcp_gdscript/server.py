@@ -5,7 +5,8 @@ import logging
 from typing import Any
 
 from mcp.server import Server
-from mcp.types import CallToolRequest, CallToolResponse, TextContent, Tool
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, CallToolResult
 
 from .tools import GDScriptTools
 
@@ -36,20 +37,24 @@ class GDScriptMCPServer:
             return self.tools.get_tools()
 
         @self.server.call_tool()
-        async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResponse:
+        async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
             """Handle tool calls."""
             logger.info(f"Calling tool: {name} with arguments: {arguments}")
 
             result = self.tools.handle_tool_call(name, arguments)
 
-            return CallToolResponse(content=result.content, isError=result.isError)
+            return CallToolResult(content=result.content, isError=result.isError)
 
     async def run(self) -> None:
         """Run the MCP server."""
         logger.info("Starting GDScript MCP server")
-        async with self.server:
+        async with stdio_server() as (read_stream, write_stream):
             logger.info("GDScript MCP server is running")
-            await self.server.wait_for_shutdown()
+            await self.server.run(
+                read_stream,
+                write_stream,
+                self.server.create_initialization_options()
+            )
 
 
 def main() -> None:
