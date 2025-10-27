@@ -44,7 +44,7 @@ The simplest way to use this server - no installation required:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mcp-gdscript
+git clone https://github.com/minami110/mcp-gdscript
 cd mcp-gdscript
 
 # Install in development mode
@@ -56,7 +56,9 @@ mcp-gdscript
 
 ## Available Tools
 
-### 1. `analyze_gdscript_file`
+### File-Based Analysis Tools
+
+#### 1. `analyze_gdscript_file`
 
 Analyze a GDScript file and extract its complete structure.
 
@@ -94,7 +96,7 @@ Returns JSON with:
 }
 ```
 
-### 2. `get_gdscript_structure`
+#### 2. `get_gdscript_structure`
 
 Get a human-readable structure view of a GDScript file.
 
@@ -116,7 +118,7 @@ Functions:
   - _process (line 10)
 ```
 
-### 3. `find_gdscript_symbol`
+#### 3. `find_gdscript_symbol`
 
 Search for a specific symbol in a file.
 
@@ -137,7 +139,7 @@ Symbol information including type, name, and location.
 }
 ```
 
-### 4. `get_gdscript_dependencies`
+#### 4. `get_gdscript_dependencies`
 
 Extract all dependencies from a GDScript file.
 
@@ -159,7 +161,7 @@ Lists of extends, preload, and import statements.
 }
 ```
 
-### 5. `analyze_gdscript_code`
+#### 5. `analyze_gdscript_code`
 
 Analyze GDScript code provided directly as a string.
 
@@ -168,6 +170,88 @@ Analyze GDScript code provided directly as a string.
 
 **Output:**
 Complete analysis including structure, symbols, and summary.
+
+### Project Management Tools
+
+#### 6. `set_project_root`
+
+Set the project root directory to enable project-wide analysis.
+
+**Input:**
+- `project_root` (string): Path to the project root directory
+
+**Output:**
+Confirmation with indexed GDScript files count.
+
+**Example:**
+```json
+{
+  "project_root": "/home/user/godot_project",
+  "gdscript_files_count": 42,
+  "status": "success"
+}
+```
+
+#### 7. `get_project_root`
+
+Get the current project root directory and file count.
+
+**Input:**
+- None
+
+**Output:**
+Current project root path and indexed file count.
+
+**Example:**
+```json
+{
+  "project_root": "/home/user/godot_project",
+  "gdscript_files_count": 42
+}
+```
+
+### Code Analysis Tools
+
+#### 8. `find_references`
+
+Find all references to a symbol across the project or in a specific file.
+
+**Input:**
+- `symbol_name` (string): Name of the symbol to find references for
+- `file_path` (optional string): Limit search to a specific file. If not provided and project root is set, searches entire project.
+
+**Output:**
+List of all locations where the symbol is referenced.
+
+**Example:**
+```json
+{
+  "symbol": "player_name",
+  "total_references": 5,
+  "references": [
+    {
+      "file": "scripts/player.gd",
+      "line": 15,
+      "column": 8,
+      "end_line": 15,
+      "end_column": 19
+    },
+    {
+      "file": "scripts/manager.gd",
+      "line": 42,
+      "column": 12,
+      "end_line": 42,
+      "end_column": 23
+    }
+  ]
+}
+```
+
+**Use Cases:**
+- Find all usages of a variable or function
+- Understand dependencies between files
+- Refactor safely by checking all references
+- Trace data flow in your project
 
 ## Use Cases
 

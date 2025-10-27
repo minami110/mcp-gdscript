@@ -315,3 +315,50 @@ class GDScriptParser:
                 if text == "preload":
                     return True
         return False
+
+    def find_references(self, tree: Tree, symbol_name: str) -> list[dict[str, Any]]:
+        """Find all references to a symbol in the code.
+
+        Args:
+            tree: The parsed syntax tree
+            symbol_name: Name of the symbol to find references for
+
+        Returns:
+            List of reference locations with context
+        """
+        references = []
+        self._find_references_recursive(tree.root_node, symbol_name, references)
+        return references
+
+    def _find_references_recursive(
+        self, node: Node, symbol_name: str, references: list[dict[str, Any]], depth: int = 0
+    ) -> None:
+        """Recursively find symbol references in tree nodes.
+
+        Args:
+            node: Current tree node
+            symbol_name: Name of the symbol to find
+            references: List to populate with references
+            depth: Current recursion depth
+        """
+        if depth > 20:  # Prevent infinite recursion
+            return
+
+        node_type = node.type
+
+        # Check if this is an identifier or name node matching the symbol
+        if node_type in ("identifier", "name"):
+            text = node.text.decode("utf-8") if isinstance(node.text, bytes) else str(node.text)
+            if text == symbol_name:
+                references.append(
+                    {
+                        "line": node.start_point[0] + 1,
+                        "column": node.start_point[1],
+                        "end_line": node.end_point[0] + 1,
+                        "end_column": node.end_point[1],
+                    }
+                )
+
+        # Recursively process child nodes
+        for child in node.children:
+            self._find_references_recursive(child, symbol_name, references, depth + 1)

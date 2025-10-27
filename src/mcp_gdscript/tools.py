@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from mcp.types import Tool, TextContent, CallToolResult
 
@@ -15,6 +15,8 @@ class GDScriptTools:
     def __init__(self):
         """Initialize the tools."""
         self.parser = GDScriptParser()
+        self.project_root: Optional[Path] = None
+        self._gdscript_files: list[Path] = []
 
     def get_tools(self) -> list[Tool]:
         """Get all available tools.
@@ -97,6 +99,47 @@ class GDScriptTools:
                     "required": ["code"],
                 },
             ),
+            Tool(
+                name="set_project_root",
+                description="Set the project root directory to enable project-wide analysis. This will index all .gd files in the project.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "project_root": {
+                            "type": "string",
+                            "description": "Path to the project root directory",
+                        }
+                    },
+                    "required": ["project_root"],
+                },
+            ),
+            Tool(
+                name="get_project_root",
+                description="Get the current project root directory and count of indexed GDScript files.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                },
+            ),
+            Tool(
+                name="find_references",
+                description="Find all references to a symbol across the project or in a specific file.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "symbol_name": {
+                            "type": "string",
+                            "description": "Name of the symbol to find references for",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: Limit search to a specific file. If not provided, searches entire project.",
+                        },
+                    },
+                    "required": ["symbol_name"],
+                },
+            ),
         ]
 
     def handle_tool_call(self, tool_name: str, tool_input: dict[str, Any]) -> CallToolResult:
@@ -120,6 +163,12 @@ class GDScriptTools:
                 return self._get_dependencies(tool_input["file_path"])
             elif tool_name == "analyze_gdscript_code":
                 return self._analyze_code(tool_input["code"])
+            elif tool_name == "set_project_root":
+                return self._set_project_root(tool_input["project_root"])
+            elif tool_name == "get_project_root":
+                return self._get_project_root()
+            elif tool_name == "find_references":
+                return self._find_references(tool_input["symbol_name"], tool_input.get("file_path"))
             else:
                 return CallToolResult(
                     content=[TextContent(type="text", text=f"Unknown tool: {tool_name}")],
@@ -318,5 +367,152 @@ class GDScriptTools:
         except Exception as e:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Error analyzing code: {str(e)}")],
+                isError=True,
+            )
+
+    def _load_gdscript_files(self) -> None:
+        """Load all .gd files from the project root."""
+        if not self.project_root:
+            self._gdscript_files = []
+            return
+
+        self._gdscript_files = []
+        for file_path in self.project_root.rglob("*.gd"):
+            self._gdscript_files.append(file_path)
+
+    def _set_project_root(self, project_root: str) -> CallToolResult:
+        """Set the project root directory.
+
+        Args:
+            project_root: Path to the project root
+
+        Returns:
+            CallToolResult with status
+        """
+        try:
+            root_path = Path(project_root).resolve()
+            if not root_path.exists():
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Project root does not exist: {project_root}")],
+                    isError=True,
+                )
+
+            if not root_path.is_dir():
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Project root is not a directory: {project_root}")],
+                    isError=True,
+                )
+
+            self.project_root = root_path
+            self._load_gdscript_files()
+
+            result = {
+                "project_root": str(self.project_root),
+                "gdscript_files_count": len(self._gdscript_files),
+                "status": "success",
+            }
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(result, indent=2))],
+                isError=False,
+            )
+        except Exception as e:
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Error setting project root: {str(e)}")],
+                isError=True,
+            )
+
+    def _get_project_root(self) -> CallToolResult:
+        """Get the current project root.
+
+        Returns:
+            CallToolResult with project root info
+        """
+        try:
+            if not self.project_root:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="No project root set")],
+                    isError=False,
+                )
+
+            result = {
+                "project_root": str(self.project_root),
+                "gdscript_files_count": len(self._gdscript_files),
+            }
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(result, indent=2))],
+                isError=False,
+            )
+        except Exception as e:
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Error getting project root: {str(e)}")],
+                isError=True,
+            )
+
+    def _find_references(self, symbol_name: str, file_path: Optional[str] = None) -> CallToolResult:
+        """Find references to a symbol.
+
+        Args:
+            symbol_name: Name of the symbol to find
+            file_path: Optional specific file to search in
+
+        Returns:
+            CallToolResult with references
+        """
+        try:
+            files_to_search: list[Path] = []
+
+            if file_path:
+                # Search in specific file
+                path = Path(file_path)
+                if not path.exists():
+                    return CallToolResult(
+                        content=[TextContent(type="text", text=f"File not found: {file_path}")],
+                        isError=True,
+                    )
+                files_to_search = [path]
+            elif self.project_root:
+                # Search in project
+                files_to_search = self._gdscript_files
+            else:
+                return CallToolResult(
+                    content=[TextContent(type="text", text="No project root set and no specific file provided")],
+                    isError=True,
+                )
+
+            all_references = []
+
+            for file in files_to_search:
+                try:
+                    code = file.read_text(encoding="utf-8")
+                    tree = self.parser.parse(code)
+                    references = self.parser.find_references(tree, symbol_name)
+
+                    for ref in references:
+                        all_references.append({
+                            "file": str(file.relative_to(self.project_root) if self.project_root else file),
+                            "line": ref["line"],
+                            "column": ref["column"],
+                            "end_line": ref["end_line"],
+                            "end_column": ref["end_column"],
+                        })
+                except Exception as e:
+                    # Skip files that can't be parsed
+                    continue
+
+            result = {
+                "symbol": symbol_name,
+                "total_references": len(all_references),
+                "references": all_references,
+            }
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=json.dumps(result, indent=2))],
+                isError=False,
+            )
+        except Exception as e:
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Error finding references: {str(e)}")],
                 isError=True,
             )

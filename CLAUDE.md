@@ -16,21 +16,6 @@ uv run mcp-gdscript
 予想される出力:
 - MCP サーバーが起動し、標準入力からのメッセージを待機する状態になります
 
-**代替方法（venv を使用）:**
-```bash
-# 仮想環境作成
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 開発モードでインストール
-pip install -e .
-
-# サーバー起動テスト
-mcp-gdscript
-
-# 終了時
-deactivate
-```
 
 ### 2. uvx での直接実行確認
 
